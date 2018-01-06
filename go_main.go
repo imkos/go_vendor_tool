@@ -117,6 +117,7 @@ func go_get_pkg(pkg *st_verdor_package, ch <-chan struct{}) {
 		<-ch
 	}()
 	if pkg != nil {
+		//处理常用golang.org/x 系列
 		if strings.Contains(pkg.Path, "golang.org/x") {
 			a_str := strings.Split(pkg.Path, "/")
 			var new_dir string
@@ -157,6 +158,60 @@ func go_get_pkg(pkg *st_verdor_package, ch <-chan struct{}) {
 					}
 				} else {
 					mirror_path := "github.com/golang/" + pkg_name
+					execCommand("git", []string{"clone", "https://" + mirror_path + ".git"}, new_dir)
+					execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
+				}
+			}
+			//处理google.golang.org 域名下的grpc与genproto(TODO:暂时不处理)
+		} else if strings.Contains(pkg.Path, "google.golang.org") {
+
+			//处理google/ 域名下的一些库
+		} else if strings.Contains(pkg.Path, "google/") {
+			var new_dir string
+			var pkg_name string
+			var pkg_url string
+			if strings.Count(pkg.Path, "/") > 1 {
+				pkg_fields := strings.Split(pkg.Path, "/")
+				pkg_url = strings.Join(pkg_fields[:2], "/")
+				if _, ok := mp_cache.Load(pkg_url); ok {
+					return
+				} else {
+					mp_cache.Store(pkg_url, 1)
+					ln := strings.LastIndex(pkg_url, "/")
+					new_dir = filepath.Join(s_gopath, pkg_url[:ln])
+					pkg_name = pkg_url[ln+1:]
+				}
+			} else {
+				//由于govendor工具生成的path都是已排序的,其实此处的判断可以省略
+				if _, ok := mp_cache.Load(pkg.Path); ok {
+					return
+				} else {
+					mp_cache.Store(pkg.Path, 1)
+					pkg_url = pkg.Path
+					ln := strings.LastIndex(pkg.Path, "/")
+					new_dir = filepath.Join(s_gopath, pkg.Path[:ln])
+					pkg_name = pkg.Path[ln+1:]
+				}
+			}
+			if !Exist(new_dir) {
+				os.MkdirAll(new_dir, 0755)
+				mirror_path := "github.com/" + pkg_url
+				execCommand("git", []string{"clone", "https://" + mirror_path + ".git"}, new_dir)
+				execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
+			} else {
+				pkg_dir := filepath.Join(new_dir, pkg_name)
+				if Exist(pkg_dir) {
+					if Exist(filepath.Join(pkg_dir, ".git")) {
+						execCommand("git", []string{"pull"}, filepath.Join(new_dir, pkg_name))
+						execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
+					} else {
+						os.RemoveAll(pkg_dir)
+						mirror_path := "github.com/" + pkg_url
+						execCommand("git", []string{"clone", "https://" + mirror_path + ".git"}, new_dir)
+						execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
+					}
+				} else {
+					mirror_path := "github.com/" + pkg_url
 					execCommand("git", []string{"clone", "https://" + mirror_path + ".git"}, new_dir)
 					execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
 				}
@@ -262,7 +317,7 @@ func main() {
 		}
 		g_gopath := strings.Split(os.Getenv("GOPATH"), path_sep)
 		if len(g_gopath) > 1 && len(g_gopath[0]) > 0 {
-			s_gopath = g_gopath[1] + sep_path + "src"
+			s_gopath = g_gopath[0] + sep_path + "src"
 		}
 		if s_gopath == "" {
 			fmt.Println("GOPATH IS invalid!")
