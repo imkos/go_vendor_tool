@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	Major_Ver = "1.0.1"
+	Major_Ver = "1.0.2"
 	//
 	VENDOR_DIR       = "vendor"
 	VERDOR_DESC_FILE = VENDOR_DIR + ".json"
@@ -164,9 +164,10 @@ func go_get_pkg(pkg *st_verdor_package, ch <-chan struct{}) {
 		} else {
 			var new_dir string
 			var pkg_name string
+			var pkg_url string
 			if strings.Count(pkg.Path, "/") > 2 {
 				pkg_fields := strings.Split(pkg.Path, "/")
-				pkg_url := strings.Join(pkg_fields[:3], "/")
+				pkg_url = strings.Join(pkg_fields[:3], "/")
 				if _, ok := mp_cache.Load(pkg_url); ok {
 					return
 				} else {
@@ -181,6 +182,7 @@ func go_get_pkg(pkg *st_verdor_package, ch <-chan struct{}) {
 					return
 				} else {
 					mp_cache.Store(pkg.Path, 1)
+					pkg_url = pkg.Path
 					ln := strings.LastIndex(pkg.Path, "/")
 					new_dir = filepath.Join(s_gopath, pkg.Path[:ln])
 					pkg_name = pkg.Path[ln+1:]
@@ -188,7 +190,7 @@ func go_get_pkg(pkg *st_verdor_package, ch <-chan struct{}) {
 			}
 			if !Exist(new_dir) {
 				os.MkdirAll(new_dir, 0755)
-				execCommand("git", []string{"clone", "https://" + pkg.Path + ".git"}, new_dir)
+				execCommand("git", []string{"clone", "https://" + pkg_url + ".git"}, new_dir)
 				execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
 			} else {
 				pkg_dir := filepath.Join(new_dir, pkg_name)
@@ -198,11 +200,11 @@ func go_get_pkg(pkg *st_verdor_package, ch <-chan struct{}) {
 						execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
 					} else {
 						os.RemoveAll(pkg_dir)
-						execCommand("git", []string{"clone", "https://" + pkg.Path + ".git"}, new_dir)
+						execCommand("git", []string{"clone", "https://" + pkg_url + ".git"}, new_dir)
 						execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
 					}
 				} else {
-					execCommand("git", []string{"clone", "https://" + pkg.Path + ".git"}, new_dir)
+					execCommand("git", []string{"clone", "https://" + pkg_url + ".git"}, new_dir)
 					execCommand("git", []string{"reset", "--hard", pkg.Revision}, filepath.Join(new_dir, pkg_name))
 				}
 			}
@@ -218,7 +220,7 @@ func init() {
 	}
 	s_home_rootpath = flag.String("dir", filepath.Dir(os.Args[0]), "Set Home RootPath")
 	bo_show_gopath = flag.Bool("env", false, "Show GOPATH")
-	bo_use_sys_gopath = flag.Bool("usegoenv", false, "Use GOPATH")
+	bo_use_sys_gopath = flag.Bool("usegoenv", false, "Use GOPATH; Otherwise use project[RootPath] vendor folder")
 }
 
 func main() {
