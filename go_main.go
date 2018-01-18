@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 )
@@ -309,13 +308,7 @@ func main() {
 	}
 	if *bo_use_sys_gopath {
 		//%path%变量中的分隔符
-		var path_sep string
-		if runtime.GOOS == "windows" {
-			path_sep = ";"
-		} else {
-			path_sep = ":"
-		}
-		g_gopath := strings.Split(os.Getenv("GOPATH"), path_sep)
+		g_gopath := filepath.SplitList(os.Getenv("GOPATH"))
 		if len(g_gopath) > 1 && len(g_gopath[0]) > 0 {
 			s_gopath = g_gopath[0] + sep_path + "src"
 		}
