@@ -309,7 +309,7 @@ func main() {
 	if *bo_use_sys_gopath {
 		//%path%变量中的分隔符
 		g_gopath := filepath.SplitList(os.Getenv("GOPATH"))
-		if len(g_gopath) > 1 && len(g_gopath[0]) > 0 {
+		if len(g_gopath) > 0 && len(g_gopath[0]) > 0 {
 			s_gopath = g_gopath[0] + sep_path + "src"
 		}
 		if s_gopath == "" {
